@@ -6,9 +6,9 @@ import { Home, TrendingUp, MapPin, ShoppingBasket, Utensils, Milk, Sparkles, His
 
 const NAV_ITEMS = [
     { href: '/', label: 'Le Feed', icon: Home },
-    { href: '/ranking', label: 'Meilleurs Plans', icon: TrendingUp },
+    { href: '/ranking', label: 'Classement', icon: TrendingUp },
     { href: '/map', label: 'Ma Ville', icon: MapPin },
-    { href: '/annonces', label: 'Courses', icon: ShoppingBasket },
+    { href: '/annonces', label: 'Petites Annonces', icon: ShoppingBasket },
 ];
 
 const CATEGORIES = [
