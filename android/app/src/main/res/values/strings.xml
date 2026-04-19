@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CH7AL hanouti</string>
+    <string name="title_activity_main">CH7AL hanouti</string>
+    <string name="package_name">com.hanoutprice.app</string>
+    <string name="custom_url_scheme">com.hanoutprice.app</string>
+</resources>

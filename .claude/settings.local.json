@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git remote get-url:*)",
+      "Bash(start rundll32.exe keymgr.dll,KRShowKeyMgr)",
+      "Bash(git credential reject:*)",
+      "Bash(cmdkey /delete:LegacyGeneric:target=git:https://github.com:*)",
+      "Bash(cmdkey /delete:LegacyGeneric:target=https://github.com:*)",
+      "Bash(git credential-manager:*)",
+      "Bash(git config:*)",
+      "Bash(findstr:*)",
+      "Bash(gh auth:*)",
+      "Bash(firebase --version:*)",
+      "Bash(firebase login:*)",
+      "Bash(firebase projects:list:*)",
+      "Bash(set BUILD_TARGET=static)",
+      "Bash(npm run build:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(grep:*)",
+      "Bash(BUILD_TARGET=static npm run build:*)",
+      "Bash(ls \"D:\\\\hanouti version final ch7al projet\\\\public\"\" && echo \"---\" && cat \"D:hanouti version final ch7al projetsrcapplayout.tsx \")",
+      "Bash(ls:*)",
+      "Bash(python:*)",
+      "Bash(dir:*)",
+      "Bash(npx cap sync:*)",
+      "Bash(./gradlew assembleDebug:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(netstat:*)"
+    ]
+  }
+}

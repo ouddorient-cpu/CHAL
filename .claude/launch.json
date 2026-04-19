@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "landing",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "const http=require('http'),fs=require('fs'),path=require('path');http.createServer((req,res)=>{const f=path.join('landing','index.html');fs.readFile(f,(err,data)=>{if(err){res.writeHead(404);res.end('Not found');}else{res.writeHead(200,{'Content-Type':'text/html'});res.end(data);}});}).listen(4321,()=>console.log('Landing on 4321'));"],
+      "port": 4321
+    }
+  ]
+}

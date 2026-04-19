@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "446023373048",
+    "project_id": "ch7al-hanouti",
+    "storage_bucket": "ch7al-hanouti.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:446023373048:android:20687420acec4e20146b0d",
+        "android_client_info": {
+          "package_name": "com.hanoutprice.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "446023373048-okevil7e8ogtals3mi8q4a3ugacsmsli.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6I4YLOxwGH3o5fv7_ewHLpcyFlSvFGmE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "446023373048-okevil7e8ogtals3mi8q4a3ugacsmsli.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

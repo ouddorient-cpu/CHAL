@@ -1,0 +1,10 @@
+kind: "AppHostingYaml"
+schemaVersion: "v1"
+buildSettings:
+  environmentVariables:
+    - name: NEXT_BUILD_TYPE
+      value: "apphosting"
+runSettings:
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
