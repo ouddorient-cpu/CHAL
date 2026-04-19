@@ -3,7 +3,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { addStore } from "@/services/dataService";
 import { ArrowLeft, Check, MapPin, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { MEKNES_NEIGHBORHOODS } from "@/lib/constants";
@@ -143,174 +142,92 @@ export default function AddStorePage() {
                 <div className="w-10" />
             </div>
 
-            <form onSubmit={handleSubmit} className="p-4 space-y-5 pb-10">
+            <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6 pb-10 max-w-lg mx-auto w-full">
 
-                {/* ── Geolocation card ── */}
-                <div className={`rounded-[2.5rem] p-6 border relative overflow-hidden transition-all ${geoStatus === 'success'
-                    ? 'bg-emerald-primary/5 border-emerald-primary/20'
-                    : geoStatus === 'error'
-                        ? 'bg-red-50 border-red-100'
-                        : 'bg-emerald-primary/5 border-emerald-primary/10'
-                    }`}>
-                    <div className="absolute top-0 left-0 w-full h-1 bg-emerald-accent" />
+                {/* ── Nom du Hanout ── */}
+                <div>
+                    <label className="block text-[11px] font-black text-muted uppercase tracking-widest mb-3">
+                        Nom du Hanout *
+                    </label>
+                    <input
+                        required
+                        autoFocus
+                        className="w-full bg-surface border-2 border-border-subtle rounded-[20px] py-4 px-6 text-base font-bold focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-foreground placeholder:text-muted"
+                        placeholder="Ex: Épicerie Chez Ahmed"
+                        value={formData.name}
+                        onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
+                    />
+                </div>
 
-                    {geoStatus === 'success' ? (
-                        <div className="text-center">
-                            <div className="bg-emerald-primary text-white w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-primary/20">
-                                <CheckCircle2 size={28} />
+                {/* ── Géolocalisation ── */}
+                <div className={`rounded-[24px] p-5 border-2 transition-all ${
+                    geoStatus === 'success' ? 'border-primary bg-primary/5'
+                    : geoStatus === 'error'  ? 'border-red-300 bg-red-50'
+                    : geoStatus === 'loading' ? 'border-primary/30 bg-primary/5'
+                    : 'border-border-subtle bg-surface'
+                }`}>
+                    {geoStatus === 'loading' && (
+                        <div className="flex items-center gap-4">
+                            <Loader2 className="w-8 h-8 text-primary animate-spin flex-shrink-0" />
+                            <div>
+                                <p className="font-black text-primary text-sm">Localisation en cours…</p>
+                                <p className="text-[11px] text-muted mt-0.5">GPS + adresse automatique</p>
                             </div>
-                            <h3 className="font-black text-emerald-primary uppercase tracking-tighter text-lg">{t('positionCaptureeExcl')}</h3>
-                            <p className="text-[10px] font-bold text-muted mt-1 font-mono">
-                                {location?.latitude.toFixed(5)}, {location?.longitude.toFixed(5)}
-                            </p>
-                            <p className="text-[9px] font-black text-emerald-primary/60 uppercase tracking-widest mt-1">
-                                {t('adresseQuartierAutoRemplis')} ↓
-                            </p>
-                            <button
-                                type="button"
-                                onClick={handleGetPosition}
-                                className="mt-4 bg-white text-emerald-primary border border-emerald-primary/20 px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] active:scale-95 transition-all shadow-sm"
-                            >
-                                {t('recalibrer')}
+                        </div>
+                    )}
+
+                    {geoStatus === 'success' && (
+                        <div className="flex items-center gap-4">
+                            <CheckCircle2 className="w-8 h-8 text-primary flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                                <p className="font-black text-primary text-sm">Position capturée ✓</p>
+                                <p className="text-[11px] text-muted mt-0.5 truncate">{formData.address || `${location?.latitude.toFixed(4)}, ${location?.longitude.toFixed(4)}`}</p>
+                                {formData.neighborhood && (
+                                    <span className="inline-block mt-1 bg-primary text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                                        {formData.neighborhood}
+                                    </span>
+                                )}
+                            </div>
+                            <button type="button" onClick={handleGetPosition} className="text-[10px] font-black text-primary underline underline-offset-2 flex-shrink-0">
+                                Recalibrer
                             </button>
                         </div>
-                    ) : geoStatus === 'error' ? (
-                        <div className="text-center">
-                            <div className="bg-red-100 text-red-500 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                                <AlertCircle size={28} />
+                    )}
+
+                    {geoStatus === 'error' && (
+                        <div className="flex items-center gap-4">
+                            <AlertCircle className="w-8 h-8 text-red-400 flex-shrink-0" />
+                            <div className="flex-1">
+                                <p className="font-black text-red-500 text-sm">Géoloc non disponible</p>
+                                <p className="text-[11px] text-muted mt-0.5">Activez la localisation dans votre navigateur</p>
                             </div>
-                            <h3 className="font-black text-red-500 uppercase tracking-tighter">{t('geolocNonDispo')}</h3>
-                            <p className="text-[10px] font-bold text-muted mt-2 max-w-[220px] mx-auto leading-relaxed">
-                                {t('activezGeoloc')}
-                            </p>
-                            <button
-                                type="button"
-                                onClick={handleGetPosition}
-                                className="mt-4 bg-white text-red-500 border border-red-200 px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] active:scale-95 transition-all shadow-sm"
-                            >
-                                {t('reessayer')}
+                            <button type="button" onClick={handleGetPosition} className="text-[10px] font-black text-red-400 underline underline-offset-2 flex-shrink-0">
+                                Réessayer
                             </button>
                         </div>
-                    ) : geoStatus === 'loading' ? (
-                        <div className="text-center">
-                            <div className="bg-emerald-primary text-white w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-primary/20">
-                                <Loader2 size={28} className="animate-spin" />
+                    )}
+
+                    {geoStatus === 'idle' && (
+                        <div className="flex items-center gap-4">
+                            <MapPin className="w-8 h-8 text-muted flex-shrink-0" />
+                            <div className="flex-1">
+                                <p className="font-black text-foreground text-sm">Géolocalisation</p>
+                                <p className="text-[11px] text-muted mt-0.5">Remplit l'adresse et le quartier automatiquement</p>
                             </div>
-                            <h3 className="font-black text-emerald-primary uppercase tracking-tighter text-lg">{t('localisationPoints')}</h3>
-                            <p className="text-[10px] font-bold text-muted mt-2 uppercase tracking-widest">
-                                {t('recuperationGPS')}
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="text-center">
-                            <div className="bg-emerald-primary text-white w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-primary/20">
-                                <MapPin size={28} />
-                            </div>
-                            <h3 className="font-black text-emerald-primary uppercase tracking-tighter text-lg">{t('geolocalisation')}</h3>
-                            <p className="text-xs font-bold text-muted mt-2 max-w-[220px] mx-auto uppercase tracking-widest leading-relaxed">
-                                {t('autoRemplitAdresse')}
-                            </p>
-                            <button
-                                type="button"
-                                onClick={handleGetPosition}
-                                className="mt-6 bg-white text-emerald-primary border border-emerald-primary/20 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all shadow-sm flex items-center gap-2 mx-auto"
-                            >
-                                <MapPin size={14} />
-                                {t('maPosition')}
+                            <button type="button" onClick={handleGetPosition} className="bg-primary text-white text-[10px] font-black px-4 py-2 rounded-full flex-shrink-0">
+                                Activer
                             </button>
                         </div>
                     )}
                 </div>
 
-                {/* ── Text fields ── */}
-                <div className="bg-white rounded-3xl p-6 border border-border-faint shadow-sm space-y-4">
-
-                    {/* Name */}
-                    <div>
-                        <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-2 px-1">
-                            {t('nomHanoutLabel')}
-                        </label>
-                        <input
-                            required
-                            className="w-full bg-surface border border-border-faint rounded-2xl py-4 px-5 text-sm font-bold focus:ring-8 focus:ring-emerald-primary/5 focus:border-emerald-primary outline-none transition-all text-foreground placeholder:text-faint"
-                            placeholder="Ex: Épicerie Chez Ahmed"
-                            value={formData.name}
-                            onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
-                        />
-                    </div>
-
-                    {/* Address */}
-                    <div>
-                        <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-2 px-1 flex items-center gap-2">
-                            {t('adresseLabel')}
-                            {geoStatus === 'success' && (
-                                <span className="text-emerald-primary">● {t('autoRempli')}</span>
-                            )}
-                        </label>
-                        <input
-                            className="w-full bg-surface border border-border-faint rounded-2xl py-4 px-5 text-sm font-bold focus:ring-8 focus:ring-emerald-primary/5 focus:border-emerald-primary outline-none transition-all text-foreground placeholder:text-faint"
-                            placeholder="Ex: Rue Sidi Baba, Meknès"
-                            value={formData.address}
-                            onChange={e => setFormData(f => ({ ...f, address: e.target.value }))}
-                        />
-                    </div>
-
-                    {/* City */}
-                    <div>
-                        <label className="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-2 px-1">{t('villeLabel')}</label>
-                        <div className="relative">
-                            <select
-                                aria-label={t('villeLabel')}
-                                className="w-full bg-surface border border-border-faint rounded-2xl py-4 px-5 text-sm font-bold focus:ring-8 focus:ring-emerald-primary/5 focus:border-emerald-primary outline-none appearance-none transition-all text-foreground"
-                                value={formData.city}
-                                onChange={e => setFormData(f => ({ ...f, city: e.target.value }))}
-                            >
-                                {CITIES.map(v => (
-                                    <option key={v} value={v}>{v}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
-                                <ArrowLeft size={16} className="rotate-[270deg]" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── Neighborhood pills ── */}
-                <div className="bg-white rounded-3xl p-6 border border-border-faint shadow-sm">
-                    <div className="flex items-center gap-2 mb-4">
-                        <MapPin size={14} className="text-emerald-primary" />
-                        <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
-                            {t('quartierLabel')}
-                        </span>
-                        {geoStatus === 'success' && formData.neighborhood && (
-                            <span className="text-[9px] font-black text-emerald-primary uppercase tracking-widest">● {t('detecteAuto')}</span>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {MEKNES_NEIGHBORHOODS.map(n => (
-                            <button
-                                key={n}
-                                type="button"
-                                onClick={() => setFormData(f => ({ ...f, neighborhood: f.neighborhood === n ? '' : n }))}
-                                className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-tighter transition-all active:scale-95 ${formData.neighborhood === n
-                                    ? 'bg-emerald-primary text-white shadow-sm'
-                                    : 'bg-surface text-muted border border-border-faint'
-                                    }`}
-                            >
-                                {n}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
                 {/* ── Submit ── */}
                 <button
                     type="submit"
-                    disabled={loading}
-                    className="w-full bg-emerald-primary text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-emerald-primary/20 active:scale-95 transition-all disabled:opacity-50 border-t border-white/20"
+                    disabled={loading || !formData.name}
+                    className="w-full bg-primary text-white py-5 rounded-full font-black text-sm shadow-xl shadow-primary/30 active:scale-95 transition-all disabled:opacity-40"
                 >
-                    {loading ? t('chargement') : t('ajouterLeHanoutBtn')}
+                    {loading ? 'Ajout en cours…' : 'Ajouter le Hanout'}
                 </button>
 
             </form>
