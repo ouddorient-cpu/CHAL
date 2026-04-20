@@ -56,6 +56,7 @@ function AddPriceContent() {
     // AI analysis
     const [aiLoading, setAiLoading] = useState(false);
     const [aiConfidence, setAiConfidence] = useState<number | null>(null);
+    const [aiSuccess, setAiSuccess] = useState(false);
 
     // Step 2 — details
     const [price, setPrice] = useState("");
@@ -101,16 +102,17 @@ function AddPriceContent() {
 
         // Analyse IA en arrière-plan
         setAiLoading(true);
+        setAiSuccess(false);
         try {
             const result = await analyzeProductImage(dataUrl);
-            if (result.productName && result.productName !== "Produit non identifié") {
-                setProductName(result.productName);
-            }
+            const recognized = result.productName && result.productName !== "Produit non identifié";
+            if (recognized) setProductName(result.productName);
             if (result.price && result.price !== "") {
-                const parsed = parseFloat(result.price.replace(",", "."));
-                if (!isNaN(parsed)) setPrice(String(parsed));
+                const parsed = parseFloat(result.price.replace(",", ".").replace(/[^\d.]/g, ""));
+                if (!isNaN(parsed) && parsed > 0) setPrice(String(parsed));
             }
             setAiConfidence(result.confidence);
+            if (recognized) setAiSuccess(true);
         } catch {
             // silencieux — l'utilisateur remplit manuellement
         } finally {
@@ -263,29 +265,44 @@ function AddPriceContent() {
                                 <motion.div
                                     initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-2xl px-5 py-3 mx-auto"
+                                    className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-2xl px-5 py-4"
                                 >
-                                    <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
-                                    <span className="text-sm font-bold text-primary">Gemini analyse l'image…</span>
+                                    <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-black text-primary">IA Gemini en cours…</p>
+                                        <p className="text-[11px] text-muted mt-0.5">Lecture du produit et du prix</p>
+                                    </div>
                                 </motion.div>
                             )}
 
-                            {!aiLoading && aiConfidence !== null && photo && (
+                            {!aiLoading && aiSuccess && photo && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ type: "spring", stiffness: 300 }}
+                                    className="bg-primary text-white rounded-2xl px-5 py-4 flex items-center gap-4"
+                                >
+                                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <Sparkles className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-black text-sm">✨ Produit reconnu par l'IA !</p>
+                                        <p className="text-[11px] opacity-80 mt-0.5 truncate">Nom et prix pré-remplis — vérifiez et continuez</p>
+                                    </div>
+                                    <span className="text-[11px] font-black bg-white/20 px-2 py-1 rounded-lg flex-shrink-0">
+                                        {Math.round((aiConfidence ?? 0) * 100)}%
+                                    </span>
+                                </motion.div>
+                            )}
+
+                            {!aiLoading && !aiSuccess && aiConfidence !== null && photo && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className={`flex items-center gap-3 rounded-2xl px-5 py-3 mx-auto border ${
-                                        aiConfidence > 0.5
-                                            ? 'bg-primary/10 border-primary/20 text-primary'
-                                            : 'bg-yellow-50 border-yellow-200 text-yellow-700'
-                                    }`}
+                                    className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-2xl px-5 py-3 text-yellow-700"
                                 >
                                     <Sparkles className="w-4 h-4 flex-shrink-0" />
-                                    <span className="text-sm font-bold">
-                                        {aiConfidence > 0.5
-                                            ? `Produit reconnu à ${Math.round(aiConfidence * 100)}% — champs pré-remplis`
-                                            : 'Reconnaissance partielle — vérifiez les champs'}
-                                    </span>
+                                    <span className="text-sm font-bold">Produit non reconnu — remplissez manuellement</span>
                                 </motion.div>
                             )}
 
@@ -334,9 +351,17 @@ function AddPriceContent() {
                             <div className="relative">
                                 <label className="text-[11px] font-black text-muted uppercase tracking-widest absolute -top-2.5 left-6 px-2 bg-bg-app flex items-center gap-2">
                                     Prix en Dirham
-                                    {price && aiConfidence !== null && <span className="text-primary flex items-center gap-1"><Sparkles className="w-3 h-3" />IA</span>}
+                                    {price && aiSuccess && (
+                                        <motion.span
+                                            initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                            className="text-primary flex items-center gap-1"
+                                        >
+                                            <Sparkles className="w-3 h-3" /> IA
+                                        </motion.span>
+                                    )}
                                 </label>
-                                <input
+                                <motion.input
+                                    animate={price && aiSuccess ? { borderColor: 'var(--color-primary)', backgroundColor: 'color-mix(in srgb, var(--color-primary) 4%, transparent)' } : {}}
                                     type="number"
                                     step="0.1"
                                     inputMode="decimal"
@@ -352,9 +377,17 @@ function AddPriceContent() {
                             <div className="relative">
                                 <label className="text-[11px] font-black text-muted uppercase tracking-widest absolute -top-2.5 left-6 px-2 bg-bg-app flex items-center gap-2">
                                     Nom du produit
-                                    {productName && aiConfidence !== null && <span className="text-primary flex items-center gap-1"><Sparkles className="w-3 h-3" />IA</span>}
+                                    {productName && aiSuccess && (
+                                        <motion.span
+                                            initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                            className="text-primary flex items-center gap-1"
+                                        >
+                                            <Sparkles className="w-3 h-3" /> IA
+                                        </motion.span>
+                                    )}
                                 </label>
-                                <input
+                                <motion.input
+                                    animate={productName && aiSuccess ? { borderColor: 'var(--color-primary)' } : {}}
                                     type="text"
                                     placeholder="Ex: Coca-Cola 1.5L, Lait Centrale..."
                                     value={productName}
