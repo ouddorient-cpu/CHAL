@@ -10,6 +10,7 @@ export const translations = {
     // ── Bottom Nav ──
     accueil: { fr: 'Accueil', dar: 'الرئيسية' },
     annonces: { fr: 'Annonces', dar: 'إعلانات' },
+    alertes: { fr: 'Alertes', dar: 'تنبيهات' },
     ajouter: { fr: 'Ajouter', dar: 'زيد' },
     classement: { fr: 'Classement', dar: 'الترتيب' },
     profil: { fr: 'Profil', dar: 'الحساب' },

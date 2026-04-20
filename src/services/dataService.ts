@@ -296,6 +296,46 @@ export const confirmPrice = async (priceId: string, userId: string): Promise<{ c
     }
 };
 
+// ── Map / heatmap data ────────────────────────────────────────────
+export const getStoresPriceIndex = async () => {
+    const [stores, recentPrices] = await Promise.all([
+        getRecentStores(100),
+        getDocs(query(collection(db, 'prices'), orderBy('createdAt', 'desc'), limit(300))),
+    ]);
+    const pricesByStore: Record<string, number[]> = {};
+    recentPrices.docs.forEach(d => {
+        const p = d.data() as PriceContribution;
+        if (!pricesByStore[p.storeId]) pricesByStore[p.storeId] = [];
+        pricesByStore[p.storeId].push(p.price);
+    });
+    return stores
+        .filter(s => s.location)
+        .map(s => {
+            const vals = pricesByStore[s.id] || [];
+            const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+            const min = vals.length ? Math.min(...vals) : null;
+            return { ...s, avgPrice: avg, minPrice: min, priceCount: vals.length };
+        });
+};
+
+// ── Alertes prix ──────────────────────────────────────────────────
+export const setPriceAlert = async (userId: string, productId: string, productName: string, threshold: number) => {
+    await setDoc(doc(db, 'alerts', `${userId}_${productId}`), {
+        userId, productId, productName, threshold,
+        active: true, createdAt: serverTimestamp(),
+    });
+};
+
+export const deletePriceAlert = async (userId: string, productId: string) => {
+    await deleteDoc(doc(db, 'alerts', `${userId}_${productId}`));
+};
+
+export const getUserAlerts = async (userId: string) => {
+    const q = query(collection(db, 'alerts'), where('userId', '==', userId), where('active', '==', true));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+};
+
 export const getUserConfirmations = async (userId: string, priceIds: string[]): Promise<Set<string>> => {
     const confirmed = new Set<string>();
     await Promise.all(
