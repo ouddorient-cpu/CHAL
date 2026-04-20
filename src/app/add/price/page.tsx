@@ -162,7 +162,7 @@ function AddPriceContent() {
                 userId: user.uid,
                 price: parseFloat(price),
                 currency: "MAD",
-                sourceType: photo ? "photo" : "manual",
+                sourceType: photo ? "ai_photo" : "manual",
                 neighborhood: selectedStore.neighborhood || "",
                 location,
             });
