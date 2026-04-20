@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { z } from "zod";
 
 export const AIScanResultSchema = z.object({
@@ -21,51 +20,67 @@ const FALLBACK: AIScanResult = {
 export const analyzeProductImage = async (base64Image: string): Promise<AIScanResult> => {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
-        console.error("CH7AL AI: clé Gemini manquante");
+        console.error("CH7AL AI: NEXT_PUBLIC_GEMINI_API_KEY manquante");
         return FALLBACK;
     }
 
     const imageData = base64Image.includes(",") ? base64Image.split(",")[1] : base64Image;
     if (!imageData || imageData.length < 100) {
-        console.error("CH7AL AI: image vide ou invalide");
+        console.error("CH7AL AI: image invalide");
         return FALLBACK;
     }
 
-    try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        // gemini-2.0-flash: meilleure reconnaissance multimodale
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const prompt = `Tu analyses une photo de produit (épicerie, électronique, cosmétique…).
+Lis l'étiquette, le packaging ou tout texte visible.
 
-        const prompt = `Tu analyses une photo prise dans un épicerie/supermarché au Maroc.
-
-Lis l'étiquette, le packaging, et le prix si visible.
-
-Réponds UNIQUEMENT avec ce JSON (rien d'autre) :
+Réponds UNIQUEMENT avec ce JSON (sans markdown, sans texte autour) :
 {
-  "productName": "Type + Marque + Format (ex: Lait UHT Centrale 1L, Coca-Cola 33cl, Savon Lux 90g)",
-  "brand": "nom de la marque uniquement",
-  "price": "prix en chiffres si visible sur l'image, sinon chaîne vide",
-  "category": "une seule valeur parmi: Épicerie, Boissons, Crèmerie, Hygiène, Entretien, Autres",
-  "confidence": nombre entre 0 et 1 selon ta certitude
+  "productName": "nom complet du produit (marque + type + format si visible)",
+  "brand": "marque uniquement",
+  "price": "prix en chiffres si lisible sur l'image, sinon chaîne vide",
+  "category": "une seule valeur: Épicerie, Boissons, Crèmerie, Hygiène, Entretien, ou Autres",
+  "confidence": 0.0
 }`;
 
-        const result = await model.generateContent([
-            prompt,
-            { inlineData: { data: imageData, mimeType: "image/jpeg" } },
-        ]);
+    // Appel direct REST — évite les bugs SDK
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-        const text = result.response.text().trim();
-        console.log("CH7AL AI raw:", text);
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inline_data: { mime_type: "image/jpeg", data: imageData } },
+                    ],
+                }],
+                generationConfig: { temperature: 0.1, maxOutputTokens: 512 },
+            }),
+        });
 
-        // Extraire le JSON même si le modèle ajoute du texte autour
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("Pas de JSON dans la réponse");
+        if (!res.ok) {
+            const errText = await res.text();
+            console.error(`CH7AL AI HTTP ${res.status}:`, errText);
+            return FALLBACK;
+        }
 
-        const parsed = JSON.parse(jsonMatch[0]);
+        const json = await res.json();
+        const text: string = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        console.log("CH7AL AI raw response:", text);
+
+        const match = text.match(/\{[\s\S]*\}/);
+        if (!match) {
+            console.error("CH7AL AI: pas de JSON dans la réponse", text);
+            return FALLBACK;
+        }
+
+        const parsed = JSON.parse(match[0]);
         return AIScanResultSchema.parse(parsed);
 
     } catch (err) {
-        console.error("CH7AL AI error:", err);
+        console.error("CH7AL AI fetch error:", err);
         return FALLBACK;
     }
 };
