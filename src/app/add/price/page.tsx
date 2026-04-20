@@ -282,7 +282,7 @@ function AddPriceContent() {
                         <motion.div
                             key="step1"
                             initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }}
-                            className="p-5 space-y-4"
+                            className="p-5 pb-10 space-y-4"
                         >
                             <div className="text-center">
                                 <h3 className="text-2xl font-black text-foreground mb-1">
@@ -464,7 +464,7 @@ function AddPriceContent() {
                         <motion.div
                             key="step2"
                             initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }}
-                            className="p-6 space-y-8 max-w-lg mx-auto w-full"
+                            className="p-6 pb-12 space-y-8 max-w-lg mx-auto w-full"
                         >
                             <div className="text-center">
                                 <h3 className="text-2xl font-black text-foreground mb-1">Les détails du prix</h3>
@@ -537,7 +537,7 @@ function AddPriceContent() {
                         <motion.div
                             key="step3"
                             initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }}
-                            className="p-6 space-y-6 max-w-lg mx-auto w-full"
+                            className="p-6 pb-12 space-y-6 max-w-lg mx-auto w-full"
                         >
                             <div className="text-center">
                                 <h3 className="text-2xl font-black text-foreground mb-1">Choisir le Hanout</h3>
@@ -552,7 +552,7 @@ function AddPriceContent() {
                                 />
                             </div>
 
-                            <div className="space-y-3 max-h-[55vh] overflow-y-auto no-scrollbar pb-4">
+                            <div className="space-y-3 max-h-[45vh] overflow-y-auto no-scrollbar pb-2">
                                 {filteredStores.map(store => (
                                     <button key={store.id} onClick={() => setSelectedStore(store)}
                                         className={`w-full p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${selectedStore?.id === store.id ? 'border-primary bg-primary/5' : 'border-border-subtle bg-surface hover:border-primary/30'}`}

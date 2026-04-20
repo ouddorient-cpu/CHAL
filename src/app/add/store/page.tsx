@@ -142,7 +142,7 @@ export default function AddStorePage() {
                 <div className="w-10" />
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6 pb-10 max-w-lg mx-auto w-full">
+            <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6 pb-16 max-w-lg mx-auto w-full">
 
                 {/* ── Nom du Hanout ── */}
                 <div>

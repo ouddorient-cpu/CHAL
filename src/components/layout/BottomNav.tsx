@@ -14,9 +14,14 @@ const navItems: { href: string; icon: typeof Home; labelKey: TranslationKey; isF
     { href: "/profile", icon: User, labelKey: "profil" },
 ];
 
+// Routes where BottomNav should be hidden (focused flows with their own nav)
+const HIDDEN_ROUTES = ['/add/price', '/add/store', '/add/product', '/basket', '/alerts', '/map'];
+
 export default function BottomNav() {
     const pathname = usePathname();
     const { t } = useLanguage();
+
+    if (HIDDEN_ROUTES.some(r => pathname.startsWith(r))) return null;
 
     return (
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-background/97 backdrop-blur-xl border-t border-border-faint px-2 py-1 flex justify-around items-center z-50 safe-area-bottom premium-shadow transition-colors duration-300">
