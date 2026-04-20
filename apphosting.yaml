@@ -4,6 +4,8 @@ buildSettings:
   environmentVariables:
     - name: NEXT_BUILD_TYPE
       value: "apphosting"
+    - name: NEXT_PUBLIC_GEMINI_API_KEY
+      value: "AIzaSyCgUGAVVKBfU8J-0m5drOEMYB5UryUrVL8"
 runSettings:
   concurrency: 80
   cpu: 1
