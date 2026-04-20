@@ -11,6 +11,7 @@ export const translations = {
     accueil: { fr: 'Accueil', dar: 'الرئيسية' },
     annonces: { fr: 'Annonces', dar: 'إعلانات' },
     alertes: { fr: 'Alertes', dar: 'تنبيهات' },
+    panier: { fr: 'Panier', dar: 'السلة' },
     ajouter: { fr: 'Ajouter', dar: 'زيد' },
     classement: { fr: 'Classement', dar: 'الترتيب' },
     profil: { fr: 'Profil', dar: 'الحساب' },

@@ -318,6 +318,36 @@ export const getStoresPriceIndex = async () => {
         });
 };
 
+// ── Basket mensuel ────────────────────────────────────────────────
+export interface BasketItem {
+    id: string;
+    name: string;
+    productId?: string;
+    qty: number;
+    unit: string;
+    currentMinPrice?: number | null;
+}
+
+export const getBasket = async (userId: string): Promise<BasketItem[]> => {
+    const snap = await getDoc(doc(db, 'baskets', userId));
+    if (!snap.exists()) return [];
+    return (snap.data().items as BasketItem[]) || [];
+};
+
+export const saveBasket = async (userId: string, items: BasketItem[]): Promise<void> => {
+    await setDoc(doc(db, 'baskets', userId), { items, updatedAt: serverTimestamp() }, { merge: true });
+};
+
+export const getBasketWithPrices = async (userId: string): Promise<BasketItem[]> => {
+    const items = await getBasket(userId);
+    return Promise.all(items.map(async item => {
+        if (!item.productId) return item;
+        const prices = await getPricesForProduct(item.productId);
+        const currentMinPrice = prices.length ? Math.min(...prices.map(p => p.price)) : null;
+        return { ...item, currentMinPrice };
+    }));
+};
+
 // ── Alertes prix ──────────────────────────────────────────────────
 export const setPriceAlert = async (userId: string, productId: string, productName: string, threshold: number) => {
     await setDoc(doc(db, 'alerts', `${userId}_${productId}`), {

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, TrendingUp, MapPin, ShoppingBasket, Utensils, Milk, Sparkles, History, Bell } from "lucide-react";
+import { Home, TrendingUp, MapPin, ShoppingBasket, Utensils, Milk, Sparkles, History, Bell, ShoppingCart } from "lucide-react";
 
 const NAV_ITEMS = [
     { href: '/', label: 'Le Feed', icon: Home },
     { href: '/ranking', label: 'Classement', icon: TrendingUp },
     { href: '/map', label: 'Ma Ville', icon: MapPin },
+    { href: '/basket', label: 'Mon Panier', icon: ShoppingCart },
     { href: '/alerts', label: 'Alertes Prix', icon: Bell },
     { href: '/annonces', label: 'Petites Annonces', icon: ShoppingBasket },
 ];

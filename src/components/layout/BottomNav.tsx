@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, PlusCircle, Trophy as TrayIcon, Bell } from "lucide-react";
+import { Home, User, PlusCircle, Trophy as TrayIcon, ShoppingCart } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { TranslationKey } from "@/lib/translations";
 
 const navItems: { href: string; icon: typeof Home; labelKey: TranslationKey; isFAB?: boolean }[] = [
     { href: "/", icon: Home, labelKey: "accueil" },
-    { href: "/alerts", icon: Bell, labelKey: "alertes" },
+    { href: "/basket", icon: ShoppingCart, labelKey: "panier" },
     { href: "/add/price", icon: PlusCircle, labelKey: "ajouter", isFAB: true },
     { href: "/ranking", icon: TrayIcon, labelKey: "classement" },
     { href: "/profile", icon: User, labelKey: "profil" },
