@@ -31,6 +31,12 @@ export const getLevelFromContributions = (count: number): UserLevel => {
 };
 
 // Products
+export const getProductById = async (id: string): Promise<Product | null> => {
+    const snap = await getDoc(doc(db, 'products', id));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as Product;
+};
+
 export const getProducts = async () => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
@@ -85,6 +91,24 @@ export const getPricesForProduct = async (productId: string) => {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PriceContribution));
+};
+
+export const getPricesForProductWithStores = async (productId: string) => {
+    const q = query(
+        collection(db, 'prices'),
+        where('productId', '==', productId),
+        orderBy('createdAt', 'desc'),
+        limit(200)
+    );
+    const snapshot = await getDocs(q);
+    const prices = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PriceContribution));
+
+    const storeIds = [...new Set(prices.map(p => p.storeId))];
+    const storeSnaps = await Promise.all(storeIds.map(id => getDoc(doc(db, 'stores', id))));
+    const storeMap: Record<string, Store> = {};
+    storeSnaps.forEach(s => { if (s.exists()) storeMap[s.id] = { id: s.id, ...s.data() } as Store; });
+
+    return prices.map(p => ({ ...p, store: storeMap[p.storeId] || null }));
 };
 
 export const addPriceAndCalculateStats = async (contribution: Omit<PriceContribution, 'id' | 'createdAt'>) => {

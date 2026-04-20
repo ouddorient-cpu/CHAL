@@ -65,7 +65,7 @@ function FeedCard({ item }: { item: FeedItem }) {
     const initial = item.userName?.charAt(0)?.toUpperCase() || 'A';
 
     return (
-        <Link href={`/product/placeholder?id=${item.product?.id || ''}`}>
+        <Link href={item.product?.id ? `/products/${item.product.id}` : '#'}>
             <motion.div
                 layout
                 initial={{ opacity: 0, y: 20 }}
