@@ -279,6 +279,34 @@ export const deletePrice = async (priceId: string): Promise<void> => {
     await deleteDoc(doc(db, 'prices', priceId));
 };
 
+// ── Confirmations ─────────────────────────────────────────────────
+export const confirmPrice = async (priceId: string, userId: string): Promise<{ confirmed: boolean }> => {
+    const confirmRef = doc(db, 'prices', priceId, 'confirmations', userId);
+    const priceRef = doc(db, 'prices', priceId);
+    const snap = await getDoc(confirmRef);
+
+    if (snap.exists()) {
+        await deleteDoc(confirmRef);
+        await updateDoc(priceRef, { confirmations: increment(-1) });
+        return { confirmed: false };
+    } else {
+        await setDoc(confirmRef, { userId, createdAt: serverTimestamp() });
+        await updateDoc(priceRef, { confirmations: increment(1) });
+        return { confirmed: true };
+    }
+};
+
+export const getUserConfirmations = async (userId: string, priceIds: string[]): Promise<Set<string>> => {
+    const confirmed = new Set<string>();
+    await Promise.all(
+        priceIds.map(async id => {
+            const snap = await getDoc(doc(db, 'prices', id, 'confirmations', userId));
+            if (snap.exists()) confirmed.add(id);
+        })
+    );
+    return confirmed;
+};
+
 export const updateUserFCMToken = async (userId: string, token: string) => {
     const userRef = doc(db, 'users', userId);
     await setDoc(userRef, {

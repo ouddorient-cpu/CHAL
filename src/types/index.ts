@@ -72,6 +72,7 @@ export interface PriceContribution {
         latitude: number;
         longitude: number;
     };
+    confirmations?: number;
     createdAt: Timestamp;
 }
 

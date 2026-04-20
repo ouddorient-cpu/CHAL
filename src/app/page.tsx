@@ -11,10 +11,12 @@ import {
     Sparkles,
     History,
     Plus,
+    ThumbsUp,
 } from "lucide-react";
 import Link from "next/link";
-import { getRecentPrices, getRecentStores } from "@/services/dataService";
+import { getRecentPrices, getRecentStores, confirmPrice, getUserConfirmations } from "@/services/dataService";
 import { Store } from "@/types";
+import { useAuth } from "@/context/AuthContext";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 
@@ -27,6 +29,7 @@ interface FeedItem {
     storeId?: string;
     userName?: string;
     createdAt?: any;
+    confirmations?: number;
 }
 
 // --- Helpers ---
@@ -58,28 +61,30 @@ function timeAgo(date: Date) {
 
 // --- Sub-components ---
 
-function FeedCard({ item }: { item: FeedItem }) {
+function FeedCard({ item, confirmedIds, onConfirm }: {
+    item: FeedItem;
+    confirmedIds: Set<string>;
+    onConfirm: (id: string) => void;
+}) {
     const category = item.product?.category || 'Autres';
     const emoji = getCategoryEmoji(category);
     const time = item.createdAt?.toDate ? timeAgo(item.createdAt.toDate()) : '';
     const initial = item.userName?.charAt(0)?.toUpperCase() || 'A';
+    const isConfirmed = confirmedIds.has(item.id);
+    const confirmCount = item.confirmations || 0;
 
     return (
-        <Link href={item.product?.id ? `/products/${item.product.id}` : '#'}>
-            <motion.div
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="bg-surface p-4 rounded-[20px] border border-transparent shadow-polish hover:border-primary transition-all group cursor-pointer flex flex-col"
-            >
+        <motion.div
+            layout
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-surface p-4 rounded-[20px] border border-transparent shadow-polish hover:border-primary transition-all group flex flex-col"
+        >
+            <Link href={item.product?.id ? `/products/${item.product.id}` : '#'} className="flex flex-col flex-1">
                 <div className="aspect-[4/3] w-full bg-gray-50 dark:bg-surface-2 rounded-xl mb-4 flex items-center justify-center text-4xl group-hover:bg-primary/5 transition-colors overflow-hidden">
                     {item.product?.imageUrl ? (
-                        <img
-                            src={item.product.imageUrl}
-                            alt={item.product.name}
-                            className="w-full h-full object-cover"
-                        />
+                        <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" />
                     ) : (
                         <span>{emoji}</span>
                     )}
@@ -93,28 +98,36 @@ function FeedCard({ item }: { item: FeedItem }) {
                     {item.product?.name || 'Produit'}
                 </h3>
 
-                <div className="flex items-center gap-1 text-xs text-muted mb-auto">
+                <div className="flex items-center gap-1 text-xs text-muted mb-3">
                     <StoreIcon className="w-3.5 h-3.5" />
                     {item.store?.name || 'Hanout'}
                 </div>
+            </Link>
 
-                <div className="mt-3">
-                    <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-primary/10 text-primary">
-                        ↓ PROMOTION
-                    </span>
-                </div>
-
-                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border-subtle">
+            {/* Confirm + meta */}
+            <div className="flex items-center justify-between pt-3 border-t border-border-subtle">
+                <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs text-primary font-black flex-shrink-0">
                         {initial}
                     </div>
-                    <div className="text-[10px] text-muted flex items-center justify-between flex-1 min-w-0">
-                        <span className="truncate">Posté par @{item.userName || 'Anonyme'}</span>
-                        <span className="font-medium ml-2 flex-shrink-0">{time}</span>
-                    </div>
+                    <span className="text-[10px] text-muted truncate max-w-[90px]">@{item.userName || 'Anonyme'}</span>
+                    <span className="text-[10px] text-muted">{time}</span>
                 </div>
-            </motion.div>
-        </Link>
+
+                <motion.button
+                    whileTap={{ scale: 0.85 }}
+                    onClick={e => { e.preventDefault(); onConfirm(item.id); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black transition-all ${
+                        isConfirmed
+                            ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                            : 'bg-surface-2 text-muted hover:bg-primary/10 hover:text-primary border border-border-subtle'
+                    }`}
+                >
+                    <ThumbsUp className="w-3 h-3" />
+                    {confirmCount > 0 ? confirmCount : ''}
+                </motion.button>
+            </div>
+        </motion.div>
     );
 }
 
@@ -166,11 +179,13 @@ function StatsBanner({ storesCount, pricesCount }: { storesCount: number; prices
 
 // --- Main page ---
 export default function Home() {
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
     const [stores, setStores] = useState<Store[]>([]);
     const [totalPrices, setTotalPrices] = useState(0);
+    const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         const fetchData = async () => {
@@ -188,6 +203,12 @@ export default function Home() {
                 setFeedItems(pricesWithStore);
                 setStores(rStores);
                 setTotalPrices(pricesWithStore.length);
+
+                if (user) {
+                    const ids = pricesWithStore.map((p: any) => p.id);
+                    const confirmed = await getUserConfirmations(user.uid, ids);
+                    setConfirmedIds(confirmed);
+                }
             } catch (err) {
                 console.error(err);
             } finally {
@@ -195,7 +216,22 @@ export default function Home() {
             }
         };
         fetchData();
-    }, []);
+    }, [user]);
+
+    const handleConfirm = async (priceId: string) => {
+        if (!user) return;
+        const { confirmed } = await confirmPrice(priceId, user.uid);
+        setConfirmedIds(prev => {
+            const next = new Set(prev);
+            confirmed ? next.add(priceId) : next.delete(priceId);
+            return next;
+        });
+        setFeedItems(prev => prev.map(item =>
+            item.id === priceId
+                ? { ...item, confirmations: (item.confirmations || 0) + (confirmed ? 1 : -1) }
+                : item
+        ));
+    };
 
     const filteredItems = selectedCategory === 'all'
         ? feedItems
@@ -241,7 +277,7 @@ export default function Home() {
                     ) : (
                         <AnimatePresence mode="popLayout">
                             {filteredItems.map(item => (
-                                <FeedCard key={item.id} item={item} />
+                                <FeedCard key={item.id} item={item} confirmedIds={confirmedIds} onConfirm={handleConfirm} />
                             ))}
                         </AnimatePresence>
                     )}

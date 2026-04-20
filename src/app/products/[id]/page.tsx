@@ -6,9 +6,10 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
     ArrowLeft, Store as StoreIcon, MapPin, TrendingUp, TrendingDown,
-    Minus, ChevronRight, Plus, BarChart2, Loader2
+    Minus, Plus, BarChart2, Loader2, ThumbsUp,
 } from "lucide-react";
-import { getProductById, getPricesForProductWithStores, calculateProductStats } from "@/services/dataService";
+import { getProductById, getPricesForProductWithStores, calculateProductStats, confirmPrice, getUserConfirmations } from "@/services/dataService";
+import { useAuth } from "@/context/AuthContext";
 import { Product, PriceContribution, Store } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -221,11 +222,13 @@ function StoreRow({
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const router = useRouter();
+    const { user } = useAuth();
 
     const [product, setProduct] = useState<Product | null>(null);
     const [prices, setPrices] = useState<PriceWithStore[]>([]);
     const [loading, setLoading] = useState(true);
     const [userPos, setUserPos] = useState<{ lat: number; lon: number } | null>(null);
+    const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         navigator.geolocation?.getCurrentPosition(
@@ -236,11 +239,31 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
     useEffect(() => {
         if (!id) return;
-        Promise.all([getProductById(id), getPricesForProductWithStores(id)]).then(([p, pr]) => {
+        Promise.all([getProductById(id), getPricesForProductWithStores(id)]).then(async ([p, pr]) => {
             setProduct(p);
             setPrices(pr as PriceWithStore[]);
+            if (user) {
+                const ids = (pr as PriceWithStore[]).slice(0, 8).map(x => x.id);
+                const confirmed = await getUserConfirmations(user.uid, ids);
+                setConfirmedIds(confirmed);
+            }
         }).finally(() => setLoading(false));
-    }, [id]);
+    }, [id, user]);
+
+    const handleConfirm = async (priceId: string) => {
+        if (!user) return;
+        const { confirmed } = await confirmPrice(priceId, user.uid);
+        setConfirmedIds(prev => {
+            const next = new Set(prev);
+            confirmed ? next.add(priceId) : next.delete(priceId);
+            return next;
+        });
+        setPrices(prev => prev.map(p =>
+            p.id === priceId
+                ? { ...p, confirmations: (p.confirmations || 0) + (confirmed ? 1 : -1) }
+                : p
+        ));
+    };
 
     // ── Stats ──────────────────────────────────────────────────────────────────
     const stats = calculateProductStats(prices);
@@ -429,6 +452,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                         <div className="space-y-2">
                             {prices.slice(0, 8).map((p, i) => {
                                 const date = p.createdAt?.toDate ? p.createdAt.toDate() : new Date();
+                                const isConfirmed = confirmedIds.has(p.id);
+                                const confirmCount = p.confirmations || 0;
                                 return (
                                     <div key={p.id} className="bg-surface rounded-xl border border-border-subtle px-4 py-3 flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-2 min-w-0">
@@ -443,6 +468,18 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                             {p.sourceType === 'ai_photo' && (
                                                 <span className="text-[9px] bg-primary/10 text-primary font-black px-1.5 py-0.5 rounded-md">IA</span>
                                             )}
+                                            <motion.button
+                                                whileTap={{ scale: 0.8 }}
+                                                onClick={() => handleConfirm(p.id)}
+                                                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black transition-all ${
+                                                    isConfirmed
+                                                        ? 'bg-primary text-white'
+                                                        : 'bg-surface-2 text-muted hover:text-primary border border-border-subtle'
+                                                }`}
+                                            >
+                                                <ThumbsUp className="w-3 h-3" />
+                                                {confirmCount > 0 && confirmCount}
+                                            </motion.button>
                                         </div>
                                     </div>
                                 );
