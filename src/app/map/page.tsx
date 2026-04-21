@@ -1,20 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import dynamic from "next/dynamic";
+import { useEffect, useState, useRef, useCallback } from "react";
+import Script from "next/script";
 import { Search, MapPin, ArrowLeft, X, Navigation, TrendingDown, TrendingUp, Minus, Package } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { getStoresPriceIndex } from "@/services/dataService";
 
-// ── Leaflet dynamic imports (no SSR) ─────────────────────────────
-const MapContainer  = dynamic(() => import("react-leaflet").then(m => m.MapContainer),  { ssr: false }) as any;
-const TileLayer     = dynamic(() => import("react-leaflet").then(m => m.TileLayer),     { ssr: false }) as any;
-const CircleMarker  = dynamic(() => import("react-leaflet").then(m => m.CircleMarker),  { ssr: false }) as any;
-const Tooltip       = dynamic(() => import("react-leaflet").then(m => m.Tooltip),       { ssr: false }) as any;
-const useMap        = dynamic(() => import("react-leaflet").then(m => m.useMap),        { ssr: false }) as any;
-
-// ── Types ─────────────────────────────────────────────────────────
 interface StorePoint {
     id: string;
     name: string;
@@ -26,121 +18,141 @@ interface StorePoint {
     priceCount: number;
 }
 
-// ── Color scale ───────────────────────────────────────────────────
-function priceColor(avg: number | null, min: number, max: number): { fill: string; label: string } {
-    if (avg === null) return { fill: '#94a3b8', label: 'Pas de données' };
+const CENTER = { lat: 33.8935, lng: -5.5473 }; // Meknès
+
+function priceColor(avg: number | null, min: number, max: number): { hex: string; label: string; level: 'low' | 'mid' | 'high' | 'none' } {
+    if (avg === null) return { hex: '#94a3b8', label: 'Pas de données', level: 'none' };
     const range = max - min || 1;
-    const ratio = (avg - min) / range; // 0 = cheapest, 1 = most expensive
-    if (ratio < 0.33) return { fill: '#00D084', label: 'Bon marché' };
-    if (ratio < 0.66) return { fill: '#f59e0b', label: 'Prix moyen' };
-    return { fill: '#ef4444', label: 'Prix élevé' };
+    const ratio = (avg - min) / range;
+    if (ratio < 0.33) return { hex: '#00D084', label: 'Bon marché', level: 'low' };
+    if (ratio < 0.66) return { hex: '#f59e0b', label: 'Prix moyen', level: 'mid' };
+    return { hex: '#ef4444', label: 'Prix élevé', level: 'high' };
 }
 
-// ── GPS recenter helper ───────────────────────────────────────────
-function RecenterButton({ pos }: { pos: [number, number] | null }) {
-    // We can't use useMap here via dynamic, so we handle it via map ref
-    return null;
+// SVG circle marker for Google Maps
+function markerSvg(color: string, size = 32): string {
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+            <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${color}" stroke="white" stroke-width="2.5" opacity="0.92"/>
+        </svg>`
+    )}`;
 }
 
-// ── Main page ─────────────────────────────────────────────────────
 export default function MapPage() {
-    const [mounted, setMounted]       = useState(false);
-    const [stores, setStores]         = useState<StorePoint[]>([]);
-    const [selected, setSelected]     = useState<StorePoint | null>(null);
-    const [userPos, setUserPos]       = useState<[number, number] | null>(null);
-    const [search, setSearch]         = useState('');
-    const [mapRef, setMapRef]         = useState<any>(null);
+    const [stores, setStores]       = useState<StorePoint[]>([]);
+    const [selected, setSelected]   = useState<StorePoint | null>(null);
+    const [search, setSearch]       = useState('');
+    const [mapsReady, setMapsReady] = useState(false);
 
-    const CENTER: [number, number] = [33.8935, -5.5473]; // Meknès
+    const mapRef        = useRef<HTMLDivElement>(null);
+    const googleMapRef  = useRef<google.maps.Map | null>(null);
+    const markersRef    = useRef<google.maps.Marker[]>([]);
+    const userMarkerRef = useRef<google.maps.Marker | null>(null);
+
+    const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
 
     useEffect(() => {
-        setMounted(true);
         getStoresPriceIndex().then(data => setStores(data as StorePoint[]));
     }, []);
 
+    // Init Google Map once script is ready
+    const initMap = useCallback(() => {
+        if (!mapRef.current || googleMapRef.current) return;
+        googleMapRef.current = new window.google.maps.Map(mapRef.current, {
+            center: CENTER,
+            zoom: 14,
+            disableDefaultUI: true,
+            zoomControl: true,
+            gestureHandling: 'greedy',
+            styles: [
+                { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+                { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+                { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+            ],
+        });
+    }, []);
+
+    // Place markers whenever stores or map are ready
+    useEffect(() => {
+        if (!mapsReady || !stores.length) return;
+        if (!googleMapRef.current) initMap();
+        const map = googleMapRef.current;
+        if (!map) return;
+
+        // Clear existing markers
+        markersRef.current.forEach(m => m.setMap(null));
+        markersRef.current = [];
+
+        const prices = stores.map(s => s.avgPrice).filter(Boolean) as number[];
+        const minP = prices.length ? Math.min(...prices) : 0;
+        const maxP = prices.length ? Math.max(...prices) : 100;
+
+        const filtered = stores.filter(s =>
+            !search ||
+            s.name.toLowerCase().includes(search.toLowerCase()) ||
+            s.neighborhood?.toLowerCase().includes(search.toLowerCase())
+        );
+
+        filtered.forEach(store => {
+            const { hex } = priceColor(store.avgPrice, minP, maxP);
+            const size = store.priceCount > 0 ? Math.min(28 + store.priceCount * 3, 48) : 28;
+
+            const marker = new window.google.maps.Marker({
+                position: { lat: store.location.latitude, lng: store.location.longitude },
+                map,
+                icon: { url: markerSvg(hex, size), scaledSize: new window.google.maps.Size(size, size) },
+                title: store.name,
+            });
+
+            marker.addListener('click', () => setSelected(store));
+            markersRef.current.push(marker);
+        });
+    }, [stores, mapsReady, search, initMap]);
+
     const handleGPS = () => {
         navigator.geolocation?.getCurrentPosition(pos => {
-            const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-            setUserPos(coords);
-            mapRef?.setView(coords, 16);
+            const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            googleMapRef.current?.setCenter(latlng);
+            googleMapRef.current?.setZoom(16);
+
+            if (userMarkerRef.current) {
+                userMarkerRef.current.setPosition(latlng);
+            } else {
+                userMarkerRef.current = new window.google.maps.Marker({
+                    position: latlng,
+                    map: googleMapRef.current!,
+                    icon: {
+                        url: markerSvg('#3b82f6', 20),
+                        scaledSize: new window.google.maps.Size(20, 20),
+                    },
+                    zIndex: 999,
+                });
+            }
         });
     };
 
-    const filtered = stores.filter(s =>
-        !search || s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.neighborhood?.toLowerCase().includes(search.toLowerCase())
-    );
-
-    // Compute price range for color scale
-    const prices = filtered.map(s => s.avgPrice).filter(Boolean) as number[];
-    const minP = prices.length ? Math.min(...prices) : 0;
-    const maxP = prices.length ? Math.max(...prices) : 100;
+    // Recompute price range for the selected store badge
+    const allPrices = stores.map(s => s.avgPrice).filter(Boolean) as number[];
+    const minP = allPrices.length ? Math.min(...allPrices) : 0;
+    const maxP = allPrices.length ? Math.max(...allPrices) : 100;
 
     return (
         <div className="relative h-screen w-full overflow-hidden">
 
-            {/* ── Map ── */}
-            {mounted && (
-                <MapContainer
-                    center={CENTER}
-                    zoom={14}
-                    zoomControl={false}
-                    className="absolute inset-0 z-0 h-full w-full"
-                    ref={setMapRef}
-                >
-                    <TileLayer
-                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                        attribution='&copy; OpenStreetMap &copy; CARTO'
-                    />
+            {/* Google Maps Script */}
+            <Script
+                src={`https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&language=fr`}
+                strategy="afterInteractive"
+                onLoad={() => { setMapsReady(true); initMap(); }}
+            />
 
-                    {/* User position */}
-                    {userPos && (
-                        <CircleMarker
-                            center={userPos}
-                            radius={10}
-                            pathOptions={{ fillColor: '#3b82f6', fillOpacity: 0.9, color: '#fff', weight: 3 }}
-                        />
-                    )}
-
-                    {/* Store heatmap circles */}
-                    {filtered.map(store => {
-                        const { fill } = priceColor(store.avgPrice, minP, maxP);
-                        const isSelected = selected?.id === store.id;
-                        return (
-                            <CircleMarker
-                                key={store.id}
-                                center={[store.location.latitude, store.location.longitude]}
-                                radius={store.priceCount > 0 ? Math.min(8 + store.priceCount * 2, 22) : 8}
-                                pathOptions={{
-                                    fillColor: fill,
-                                    fillOpacity: isSelected ? 1 : 0.75,
-                                    color: isSelected ? '#fff' : fill,
-                                    weight: isSelected ? 3 : 1,
-                                }}
-                                eventHandlers={{ click: () => setSelected(store) }}
-                            >
-                                <Tooltip direction="top" offset={[0, -8]} opacity={0.95}>
-                                    <div style={{ fontFamily: 'inherit', fontSize: '11px', fontWeight: 800 }}>
-                                        <strong>{store.name}</strong><br />
-                                        {store.avgPrice !== null
-                                            ? `Moy: ${store.avgPrice.toFixed(2)} DH`
-                                            : 'Aucun prix'}
-                                    </div>
-                                </Tooltip>
-                            </CircleMarker>
-                        );
-                    })}
-                </MapContainer>
-            )}
+            {/* Map container */}
+            <div ref={mapRef} className="absolute inset-0 z-0 h-full w-full" />
 
             {/* ── Top overlay ── */}
             <div className="absolute top-0 left-0 right-0 z-20 p-4 space-y-3 pointer-events-none">
-                {/* Header */}
                 <div className="flex gap-2 pointer-events-auto">
-                    <Link
-                        href="/"
-                        className="w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center flex-shrink-0 border border-gray-100"
-                    >
+                    <Link href="/" className="w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center flex-shrink-0 border border-gray-100">
                         <ArrowLeft className="w-5 h-5 text-gray-700" />
                     </Link>
                     <div className="flex-1 relative">
@@ -169,12 +181,12 @@ export default function MapPage() {
                         </div>
                     ))}
                     <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
-                        <span className="text-[10px] font-black text-gray-600">{filtered.length} hanout{filtered.length > 1 ? 's' : ''}</span>
+                        <span className="text-[10px] font-black text-gray-600">{stores.length} hanout{stores.length > 1 ? 's' : ''}</span>
                     </div>
                 </div>
             </div>
 
-            {/* ── GPS button ── */}
+            {/* GPS button */}
             <button
                 onClick={handleGPS}
                 className="absolute bottom-32 right-4 z-20 w-12 h-12 bg-white rounded-2xl shadow-lg border border-gray-100 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all"
@@ -182,7 +194,7 @@ export default function MapPage() {
                 <Navigation className="w-5 h-5" />
             </button>
 
-            {/* ── Store detail sheet ── */}
+            {/* Store detail sheet */}
             <AnimatePresence>
                 {selected && (
                     <>
@@ -216,7 +228,6 @@ export default function MapPage() {
                                 </button>
                             </div>
 
-                            {/* Price stats */}
                             <div className="grid grid-cols-3 gap-3 mb-5">
                                 {[
                                     { label: 'Prix moyen', val: selected.avgPrice?.toFixed(2), unit: 'DH' },
@@ -230,24 +241,17 @@ export default function MapPage() {
                                 ))}
                             </div>
 
-                            {/* Price level indicator */}
-                            {selected.avgPrice !== null && (
-                                <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl mb-5 ${
-                                    priceColor(selected.avgPrice, minP, maxP).fill === '#00D084'
-                                        ? 'bg-green-50 text-green-700'
-                                        : priceColor(selected.avgPrice, minP, maxP).fill === '#f59e0b'
-                                        ? 'bg-amber-50 text-amber-700'
-                                        : 'bg-red-50 text-red-600'
-                                }`}>
-                                    {priceColor(selected.avgPrice, minP, maxP).fill === '#00D084'
-                                        ? <TrendingDown className="w-4 h-4" />
-                                        : priceColor(selected.avgPrice, minP, maxP).fill === '#f59e0b'
-                                        ? <Minus className="w-4 h-4" />
-                                        : <TrendingUp className="w-4 h-4" />
-                                    }
-                                    <span className="font-black text-sm">{priceColor(selected.avgPrice, minP, maxP).label} comparé aux autres hanouts</span>
-                                </div>
-                            )}
+                            {selected.avgPrice !== null && (() => {
+                                const { hex, label, level } = priceColor(selected.avgPrice, minP, maxP);
+                                const cls = level === 'low' ? 'bg-green-50 text-green-700' : level === 'mid' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600';
+                                const Icon = level === 'low' ? TrendingDown : level === 'mid' ? Minus : TrendingUp;
+                                return (
+                                    <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl mb-5 ${cls}`}>
+                                        <Icon className="w-4 h-4" />
+                                        <span className="font-black text-sm">{label} comparé aux autres hanouts</span>
+                                    </div>
+                                );
+                            })()}
 
                             <Link
                                 href="/add/price"

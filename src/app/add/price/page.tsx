@@ -129,13 +129,23 @@ function AddPriceContent() {
                 const recognized = result.productName && result.productName !== 'Produit non identifié';
 
                 if (recognized && result.confidence > 0.55) {
-                    // ✅ Product detected — fill fields, advance
+                    // ✅ Product detected — fill fields, match to DB, advance
                     stopScanLoop();
                     setPhoto(frame);
                     setDetectedName(result.productName);
-                    setProductName(result.productName);
                     setAiConfidence(result.confidence);
                     setAiSuccess(true);
+
+                    // Match against existing products (best fuzzy match)
+                    const detectedLower = result.productName.toLowerCase();
+                    const matched = products.find(p => {
+                        const n = p.name.toLowerCase();
+                        return n.includes(detectedLower) || detectedLower.includes(n);
+                    }) || products.find(p =>
+                        p.brand && detectedLower.includes(p.brand.toLowerCase())
+                    );
+                    setProductName(matched ? matched.name : result.productName);
+
                     if (result.price) {
                         const parsed = parseFloat(result.price.replace(',', '.').replace(/[^\d.]/g, ''));
                         if (!isNaN(parsed) && parsed > 0) setPrice(String(parsed));
@@ -193,11 +203,10 @@ function AddPriceContent() {
         return () => { stopScanLoop(); stopCamera(); };
     }, [step]); // eslint-disable-line
 
-    // Step 3 — fetch data
+    // Preload products + stores on mount so AI match works at step 2
     useEffect(() => {
-        if (step !== 3) return;
         Promise.all([getStores(), getProducts()]).then(([s, p]) => { setStores(s); setProducts(p); });
-    }, [step]);
+    }, []);
 
     const filteredStores = stores.filter(s =>
         s.name.toLowerCase().includes(storeSearch.toLowerCase()) ||
