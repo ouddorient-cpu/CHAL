@@ -5,7 +5,7 @@ import { addStore } from "@/services/dataService";
 import { ArrowLeft, Check, MapPin, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { MEKNES_NEIGHBORHOODS } from "@/lib/constants";
+import { MOROCCO_CITIES, MOROCCO_CITY_NAMES } from "@/lib/constants";
 import { useLanguage } from "@/context/LanguageContext";
 
 export default function AddStorePage() {
@@ -26,7 +26,7 @@ export default function AddStorePage() {
         neighborhood: "",
     });
 
-    const CITIES = ["Meknès", "Fès", "Rabat", "Casablanca", "Marrakech", "Tanger", "Agadir", "Oujda"];
+    const neighborhoods = MOROCCO_CITIES[formData.city] ?? [];
 
     // ── Geolocation + reverse geocoding ──────────────────────────
     const handleGetPosition = async () => {
@@ -58,14 +58,15 @@ export default function AddStorePage() {
                 const addressStr = addressParts.length ? addressParts.join(', ') : data.display_name?.split(',').slice(0, 3).join(',') || '';
 
                 // Détecter la ville dans la liste
-                const matchedCity = CITIES.find(c =>
+                const matchedCity = MOROCCO_CITY_NAMES.find(c =>
                     cityRaw.toLowerCase().includes(c.toLowerCase()) ||
                     c.toLowerCase().includes(cityRaw.toLowerCase())
                 ) || "Meknès";
 
-                // Détecter le quartier dans la liste
+                // Détecter le quartier dans la liste de la ville détectée
                 const suburbLower = suburb.toLowerCase();
-                const matchedNeighborhood = MEKNES_NEIGHBORHOODS.find(n =>
+                const cityNeighborhoods = MOROCCO_CITIES[matchedCity] ?? [];
+                const matchedNeighborhood = cityNeighborhoods.find(n =>
                     n.toLowerCase().includes(suburbLower) || suburbLower.includes(n.toLowerCase())
                 ) || '';
 
@@ -219,6 +220,40 @@ export default function AddStorePage() {
                             </button>
                         </div>
                     )}
+                </div>
+
+                {/* ── Ville ── */}
+                <div>
+                    <label className="block text-[11px] font-black text-muted uppercase tracking-widest mb-3">
+                        Ville *
+                    </label>
+                    <select
+                        required
+                        value={formData.city}
+                        onChange={e => setFormData(f => ({ ...f, city: e.target.value, neighborhood: "" }))}
+                        className="w-full bg-surface border-2 border-border-subtle rounded-[20px] py-4 px-6 text-base font-bold focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-foreground"
+                    >
+                        {MOROCCO_CITY_NAMES.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* ── Quartier ── */}
+                <div>
+                    <label className="block text-[11px] font-black text-muted uppercase tracking-widest mb-3">
+                        Quartier
+                    </label>
+                    <select
+                        value={formData.neighborhood}
+                        onChange={e => setFormData(f => ({ ...f, neighborhood: e.target.value }))}
+                        className="w-full bg-surface border-2 border-border-subtle rounded-[20px] py-4 px-6 text-base font-bold focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all text-foreground"
+                    >
+                        <option value="">— Sélectionner un quartier —</option>
+                        {neighborhoods.map(n => (
+                            <option key={n} value={n}>{n}</option>
+                        ))}
+                    </select>
                 </div>
 
                 {/* ── Submit ── */}
